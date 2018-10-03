@@ -476,7 +476,63 @@ class EventShell extends AppShell
 		$this->Job->save($job);
 		$log = ClassRegistry::init('Log');
 		$log->create();
-		$log->createLogEntry($user, 'publish', 'Event', $id, 'Event (' . $id . '): published.', 'publised () => (1)');
+		$log->createLogEntry($user, 'publish', 'Event', $id, 'Event (' . $id . '): published.', 'published () => (1)');
 	}
 
+	public function enrichment() {
+		if (empty($this->args[0]) || empty($this->args[1]) || empty($this->args[2])) {
+			die('Usage: ' . $this->Server->command_line_functions['enrichment'] . PHP_EOL);
+		}
+		$userId = $this->args[0];
+		$user = $this->User->getAuthUser($userId);
+		if (empty($user)) die('Invalid user.');
+		$eventId = $this->args[1];
+		$modules = $this->args[2];
+		try {
+			$modules = json_decode($modules);
+		} catch (Exception $e) {
+			die('Invalid module JSON');
+		}
+		if (!empty($this->args[3])) {
+			$jobId = $this->args[3];
+		} else {
+			$this->Job->create();
+			$data = array(
+					'worker' => 'default',
+					'job_type' => 'enrichment',
+					'job_input' => 'Event: ' . $eventId . ' modules: ' . $modules,
+					'status' => 0,
+					'retries' => 0,
+					'org' => $user['Organisation']['name'],
+					'message' => 'Enriching event.',
+			);
+			$this->Job->save($data);
+			$jobId = $this->Job->id;
+		}
+		$options = array(
+			'user' => $user,
+			'event_id' => $eventId,
+			'modules' => $modules
+		);
+		$result = $this->Event->enrichment($options);
+	}
+
+	public function processfreetext() {
+		$inputFile = $this->args[0];
+		$tempdir = new Folder(APP . 'tmp/cache/ingest', true, 0750);
+		$tempFile = new File(APP . 'tmp/cache/ingest' . DS . $inputFile);
+		$inputData = $tempFile->read();
+		$inputData = json_decode($inputData, true);
+		$tempFile->delete();
+		$this->Event->processFreeTextData(
+			$inputData['user'],
+			$inputData['attributes'],
+			$inputData['id'],
+			$inputData['default_comment'],
+			$inputData['force'],
+			$inputData['adhereToWarninglists'],
+			$inputData['jobId']
+		);
+		return true;
+	}
 }

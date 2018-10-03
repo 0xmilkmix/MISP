@@ -1,7 +1,11 @@
 <?php
   $tr_class = '';
   $linkClass = 'blue';
-  $otherColour = 'blue';
+  if ($event['Event']['id'] != $object['event_id']) {
+    if (!$isSiteAdmin && $event['extensionEvents'][$object['event_id']]['Orgc']['id'] != $me['org_id']) {
+      $mayModify = false;
+    }
+  }
   $editScope = ($isSiteAdmin || $mayModify) ? 'Attribute' : 'ShadowAttribute';
   if (!empty($child)) {
     if ($child === 'last' && empty($object['ShadowAttribute'])) {
@@ -27,10 +31,16 @@
 ?>
 <tr id = "Attribute_<?php echo h($object['id']); ?>_tr" class="<?php echo $tr_class; ?>" tabindex="0">
   <?php
-    if ($mayModify):
+    if ($mayModify || $extended):
   ?>
       <td style="width:10px;" data-position="<?php echo h($object['objectType']) . '_' . h($object['id']); ?>">
-        <input id = "select_<?php echo $object['id']; ?>" class="select_attribute row_checkbox" type="checkbox" data-id="<?php echo $object['id'];?>" />
+      <?php
+        if ($mayModify):
+      ?>
+          <input id = "select_<?php echo $object['id']; ?>" class="select_attribute row_checkbox" type="checkbox" data-id="<?php echo $object['id'];?>" />
+      <?php
+        endif;
+      ?>
       </td>
   <?php
     endif;
@@ -44,7 +54,26 @@
     <td class="short">
       <?php echo date('Y-m-d', $object['timestamp']); ?>
     </td>
+    <?php
+      if ($extended):
+    ?>
+      <td class="short">
+        <?php echo '<a href="' . $baseurl . '/events/view/' . h($object['event_id']) . '">' . h($object['event_id']) . '</a>'; ?>
+      </td>
+    <?php
+      endif;
+    ?>
     <td class="short">
+      <?php
+        if ($extended):
+          if ($object['event_id'] != $event['Event']['id']):
+            $extensionOrg = $event['extensionEvents'][$object['event_id']]['Orgc'];
+            echo $this->OrgImg->getOrgImg(array('name' => $extensionOrg['name'], 'id' => $extensionOrg['id'], 'size' => 24));
+          else:
+            echo $this->OrgImg->getOrgImg(array('name' => $event['Orgc']['name'], 'id' => $event['Orgc']['id'], 'size' => 24));
+          endif;
+        endif;
+      ?>
       &nbsp;
     </td>
     <td class="short">
@@ -74,10 +103,26 @@
         else $editable = '';
       ?>
       <div id = "Attribute_<?php echo $object['id']; ?>_value_solid" class="inline-field-solid" <?php echo $editable; ?>>
-        <span <?php if (Configure::read('Plugin.Enrichment_hover_enable') && isset($modules) && isset($modules['hover_type'][$object['type']])) echo 'class="eventViewAttributeHover" data-object-type="Attribute" data-object-id="' . h($object['id']) . '"'?>>
-          <?php
-            echo $this->element('/Events/View/value_field', array('object' => $object, 'linkClass' => $linkClass));
-          ?>
+        <span>
+        <?php
+			$spanExtra = '';
+			$popupButton = '';
+			if (Configure::read('Plugin.Enrichment_hover_enable') && isset($modules) && isset($modules['hover_type'][$object['type']])) {
+				$commonDataFields = sprintf(
+					'data-object-type="%s" data-object-id="%s"',
+					"Attribute",
+					h($object['id'])
+				);
+				$spanExtra = sprintf(' class="eventViewAttributeHover" %s', $commonDataFields);
+				$popupButton = sprintf('<i class="fa fa-search-plus useCursorPointer eventViewAttributePopup" %s></i>', $commonDataFields);
+			}
+			echo sprintf(
+				'<span%s style="white-space: pre-wrap;">%s</span> %s',
+				$spanExtra,
+				$this->element('/Events/View/value_field', array('object' => $object, 'linkClass' => $linkClass)),
+				$popupButton
+			);
+        ?>
         </span>
         <?php
           if (isset($object['warnings'])) {
@@ -89,7 +134,7 @@
                 foreach ($object['warnings'][$component] as $warning) $temp .= '<span class=\'bold\'>' . h($valueParts[$valuePart]) . '</span>: <span class=\'red\'>' . h($warning) . '</span><br />';
               }
             }
-            echo ' <span class="icon-warning-sign" data-placement="right" data-toggle="popover" data-content="' . h($temp) . '" data-trigger="hover">&nbsp;</span>';
+            echo ' <span class="icon-warning-sign" data-placement="right" data-toggle="popover" data-content="' . h($temp) . '" data-trigger="hover" data-placement="right">&nbsp;</span>';
           }
         ?>
       </div>
@@ -99,60 +144,45 @@
         <?php echo $this->element('ajaxAttributeTags', array('attributeId' => $object['id'], 'attributeTags' => $object['AttributeTag'], 'tagAccess' => ($isSiteAdmin || $mayModify || $me['org_id'] == $event['Event']['org_id']) )); ?>
       </div>
     </td>
+    <td class="short">
+      <?php
+        echo $this->element('galaxyQuickViewMini', array(
+          'mayModify' => $mayModify,
+          'isAclTagger' => $isAclTagger,
+          'data' => (!empty($object['Galaxy']) ? $object['Galaxy'] : array()),
+          'target_id' => $object['id'],
+          'target_type' => 'attribute'
+        ));
+      ?>
+    </td>
     <td class="showspaces bitwider">
       <div id = "Attribute_<?php echo $object['id']; ?>_comment_placeholder" class = "inline-field-placeholder"></div>
       <div id = "Attribute_<?php echo $object['id']; ?>_comment_solid" class="inline-field-solid" ondblclick="activateField('<?php echo $editScope; ?>', '<?php echo $object['id']; ?>', 'comment', <?php echo $event['Event']['id'];?>);">
         <?php echo nl2br(h($object['comment'])); ?>&nbsp;
       </div>
     </td>
-    <?php
-      if ($mayChangeCorrelation && !$event['Event']['disable_correlation']):
-    ?>
-        <td class="short" style="padding-top:3px;">
-          <input id="correlation_toggle_<?php echo h($object['id']); ?>" class="correlation-toggle" type="checkbox" data-attribute-id="<?php echo h($object['id']); ?>" <?php echo $object['disable_correlation'] ? '' : 'checked'; ?>>
-        </td>
-    <?php
-      endif;
-    ?>
+    <td class="short" style="padding-top:3px;">
+      <input
+        id="correlation_toggle_<?php echo h($object['id']); ?>"
+        class="correlation-toggle"
+        type="checkbox"
+        data-attribute-id="<?php echo h($object['id']); ?>"
+        <?php
+          echo $object['disable_correlation'] ? '' : ' checked';
+          echo ($mayChangeCorrelation && !$event['Event']['disable_correlation']) ? '' : ' disabled';
+        ?>
+      >
+    </td>
     <td class="shortish">
       <ul class="inline" style="margin:0px;">
         <?php
-          $relatedObject = 'Attribute';
-          if (!empty($event['Related' . $relatedObject][$object['id']])):
-            $i = 0;
-            $count = count($event['Related' . $relatedObject][$object['id']]);
-            foreach ($event['Related' . $relatedObject][$object['id']] as $relatedAttribute):
-              if ($i == 4):
-            ?>
-                <li class="no-side-padding correlation-expand-button useCursorPointer linkButton blue">
-                  Show (<?php echo (count($event['Related' . $relatedObject][$object['id']]) - 4);?>) more...
-                </li>
-                <?php
-                  endif;
-                  $relatedData = array('Event info' => $relatedAttribute['info'], 'Correlating Value' => $relatedAttribute['value'], 'date' => isset($relatedAttribute['date']) ? $relatedAttribute['date'] : 'N/A');
-                  $popover = '';
-                  foreach ($relatedData as $k => $v):
-                    $popover .= '<span class=\'bold black\'>' . h($k) . '</span>: <span class="blue">' . h($v) . '</span><br />';
-                  endforeach;
-                ?>
-                <li class="no-side-padding <?php if ($i > 3) echo 'correlation-expanded-area'; ?>" <?php if ($i > 3) echo 'style="display:none;"'; ?> data-toggle="popover" data-content="<?php echo h($popover); ?>" data-trigger="hover">
-                <?php
-                  if ($relatedAttribute['org_id'] == $me['org_id']):
-                    echo $this->Html->link($relatedAttribute['id'], array('controller' => 'events', 'action' => 'view', $relatedAttribute['id'], true, $event['Event']['id']), array('class' => 'red'));
-                  else:
-                    echo $this->Html->link($relatedAttribute['id'], array('controller' => 'events', 'action' => 'view', $relatedAttribute['id'], true, $event['Event']['id']), array('class' => $otherColour));
-                  endif;
-                ?>
-                </li>
-            <?php
-              $i++;
-            endforeach;
-            if ($i > 4):
-          ?>
-              <li class="no-side-padding correlation-collapse-button useCursorPointer linkButton blue" style="display:none;">Collapse...</li>
-          <?php
-            endif;
-          endif;
+          if (!empty($event['RelatedAttribute'][$object['id']])) {
+            echo $this->element('Events/View/attribute_correlations', array(
+              'scope' => 'Attribute',
+              'object' => $object,
+              'event' => $event,
+            ));
+          }
         ?>
       </ul>
     </td>
@@ -234,59 +264,65 @@
       </div>
     </td>
   <?php
-    if (Configure::read('Plugin.Sightings_enable') !== false):
-      echo $this->element('/Events/View/sighting_field', array(
-        'object' => $object,
-        'tr_class' => $tr_class,
-        'page' => $page
-      ));
-    endif;
+    echo $this->element('/Events/View/sighting_field', array(
+      'object' => $object,
+      'tr_class' => $tr_class,
+      'page' => $page
+    ));
   ?>
   <td class="short action-links">
     <?php
         if ($object['deleted']):
           if ($isSiteAdmin || $mayModify):
       ?>
-          <span class="icon-repeat useCursorPointer" title="Restore attribute" role="button" tabindex="0" aria-label="Restore attribute" onClick="deleteObject('attributes', 'restore', '<?php echo h($object['id']); ?>', '<?php echo h($event['Event']['id']); ?>');"></span>
-          <span class="icon-trash useCursorPointer" title="Delete attribute" role="button" tabindex="0" aria-label="Permanently delete attribute" onClick="deleteObject('attributes', 'delete', '<?php echo h($object['id']) . '/true'; ?>', '<?php echo h($event['Event']['id']); ?>');"></span>
+          <span class="icon-repeat useCursorPointer" title="<?php echo __('Restore attribute');?>" role="button" tabindex="0" aria-label="<?php echo __('Restore attribute');?>" onClick="deleteObject('attributes', 'restore', '<?php echo h($object['id']); ?>', '<?php echo h($event['Event']['id']); ?>');"></span>
+          <span class="icon-trash useCursorPointer" title="<?php echo __('Permanently delete attribute');?>" role="button" tabindex="0" aria-label="i<?php echo __('Permanently delete attribute');?>" onClick="deleteObject('attributes', 'delete', '<?php echo h($object['id']) . '/true'; ?>', '<?php echo h($event['Event']['id']); ?>');"></span>
       <?php
           endif;
         else:
-          if ($isSiteAdmin || !$mayModify):
+          if ($isAclAdd && ($isSiteAdmin || !$mayModify)):
             if (isset($modules) && isset($modules['types'][$object['type']])):
       ?>
-        <span class="icon-asterisk useCursorPointer" title="Query enrichment" role="button" tabindex="0" aria-label="Query enrichment" onClick="simplePopup('<?php echo $baseurl;?>/events/queryEnrichment/<?php echo h($object['id']);?>/ShadowAttribute');" title="Propose enrichment">&nbsp;</span>
+        <span class="icon-asterisk useCursorPointer" title="<?php echo __('Query enrichment');?>" role="button" tabindex="0" aria-label="<?php echo __('Query enrichment');?>" onClick="simplePopup('<?php echo $baseurl;?>/events/queryEnrichment/<?php echo h($object['id']);?>/ShadowAttribute');" title="<?php echo __('Propose enrichment');?>">&nbsp;</span>
       <?php
             endif;
             if (isset($cortex_modules) && isset($cortex_modules['types'][$object['type']])):
       ?>
-        <span class="icon-eye-open useCursorPointer" title="Query Cortex" role="button" tabindex="0" aria-label="Query Cortex" onClick="simplePopup('<?php echo $baseurl;?>/events/queryEnrichment/<?php echo h($object['id']);?>/ShadowAttribute/Cortex');" title="Propose enrichment through Cortex"></span>
+        <span class="icon-eye-open useCursorPointer" title="<?php echo __('Query Cortex');?>" role="button" tabindex="0" aria-label="<?php echo __('Query Cortex');?>" onClick="simplePopup('<?php echo $baseurl;?>/events/queryEnrichment/<?php echo h($object['id']);?>/ShadowAttribute/Cortex');" title="<?php echo __('Propose enrichment through Cortex');?>"></span>
       <?php
             endif;
       ?>
-            <a href="<?php echo $baseurl;?>/shadow_attributes/edit/<?php echo $object['id']; ?>" title="Propose Edit" class="icon-share useCursorPointer"></a>
-            <span class="icon-trash useCursorPointer" title="Propose Deletion" role="button" tabindex="0" aria-label="Propose deletion" onClick="deleteObject('shadow_attributes', 'delete', '<?php echo h($object['id']); ?>', '<?php echo h($event['Event']['id']); ?>');"></span>
+            <a href="<?php echo $baseurl;?>/shadow_attributes/edit/<?php echo $object['id']; ?>" title="<?php echo __('Propose Edit');?>" class="icon-share useCursorPointer"></a>
+            <span class="icon-trash useCursorPointer" title="<?php echo __('Propose Deletion');?>" role="button" tabindex="0" aria-label="Propose deletion" onClick="deleteObject('shadow_attributes', 'delete', '<?php echo h($object['id']); ?>', '<?php echo h($event['Event']['id']); ?>');"></span>
       <?php
             if ($isSiteAdmin):
       ?>
               <span class="verticalSeparator">&nbsp;</span>
-      <?php		endif;
+      <?php     endif;
           endif;
           if ($isSiteAdmin || $mayModify):
             if (isset($modules) && isset($modules['types'][$object['type']])):
       ?>
-        <span class="icon-asterisk useCursorPointer" onClick="simplePopup('<?php echo $baseurl;?>/events/queryEnrichment/<?php echo h($object['id']);?>/Attribute');" title="Add enrichment" role="button" tabindex="0" aria-label="Add enrichment">&nbsp;</span>
+        <span class="icon-asterisk useCursorPointer" onClick="simplePopup('<?php echo $baseurl;?>/events/queryEnrichment/<?php echo h($object['id']);?>/Attribute');" title="<?php echo __('Add enrichment');?>" role="button" tabindex="0" aria-label="<?php echo __('Add enrichment');?>">&nbsp;</span>
       <?php
             endif;
             if (isset($cortex_modules) && isset($cortex_modules['types'][$object['type']])):
       ?>
-        <span class="icon-eye-open useCursorPointer" onClick="simplePopup('<?php echo $baseurl;?>/events/queryEnrichment/<?php echo h($object['id']);?>/Attribute/Cortex');" title="Add enrichment" role="button" tabindex="0" aria-label="Add enrichment via Cortex">C</span>
+        <span class="icon-eye-open useCursorPointer" onClick="simplePopup('<?php echo $baseurl;?>/events/queryEnrichment/<?php echo h($object['id']);?>/Attribute/Cortex');" title="<?php echo __('Add enrichment');?>" role="button" tabindex="0" aria-label="<?php echo __('Add enrichment via Cortex');?>"></span>
       <?php
             endif;
       ?>
-            <a href="<?php echo $baseurl;?>/attributes/edit/<?php echo $object['id']; ?>" title="Edit" class="icon-edit useCursorPointer"></a>
-            <span class="icon-trash useCursorPointer" title="Delete attribute" role="button" tabindex="0" aria-label="Delete attribute" onClick="deleteObject('attributes', 'delete', '<?php echo h($object['id']); ?>', '<?php echo h($event['Event']['id']); ?>');"></span>
-      <?php
+            <a href="<?php echo $baseurl;?>/attributes/edit/<?php echo $object['id']; ?>" title="<?php echo __('Edit');?>" class="icon-edit useCursorPointer"></a>
+          <?php
+            if (empty($event['Event']['publish_timestamp'])):
+          ?>
+            <span class="icon-trash useCursorPointer" title="<?php echo __('Permanently delete attribute');?>" role="button" tabindex="0" aria-label="i<?php echo __('Permanently delete attribute');?>" onClick="deleteObject('attributes', 'delete', '<?php echo h($object['id']) . '/true'; ?>', '<?php echo h($event['Event']['id']); ?>');"></span>
+          <?php
+            else:
+          ?>
+            <span class="icon-trash useCursorPointer" title="<?php echo __('Soft-delete attribute');?>" role="button" tabindex="0" aria-label="<?php echo __('Soft-delete attribute');?>" onClick="deleteObject('attributes', 'delete', '<?php echo h($object['id']); ?>', '<?php echo h($event['Event']['id']); ?>');"></span>
+          <?php
+            endif;
           endif;
         endif;
     ?>

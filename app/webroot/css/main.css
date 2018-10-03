@@ -432,6 +432,7 @@ dd {
 	bottom:0px;
 	height:42px;
 	min-width:1300px;
+	z-index: 2;
 }
 
 .debugOff {
@@ -464,10 +465,43 @@ dd {
 	}
 }
 
+#footerContainer {
+	z-index: 20;
+	position:relative;
+}
+
+/* footer shortcut list */
+#shortcutsListContainer {
+	z-index: 10;
+	position: absolute;
+	background-color: #1b1b1b;
+	top: 0;
+	width:100%;
+}
+
+#triangle {
+	cursor: pointer;
+	position:fixed;
+	background-color: #1b1b1b;
+	width: 20px;
+	height: 20px;
+	bottom:30px;
+	right: 30px;
+	transform: rotate(45deg);
+}
+
+#shortcutsList {
+	top: 0;
+	width: 100%;
+	position:relative;
+	color: #999999;
+	margin: 5px 5px 0px 5px;
+}
+
 /* header */
 .header {
 	width:100%;
-	z-index: 1;
+	z-index: 2;
 }
 
 /* fonts for logo */
@@ -522,7 +556,6 @@ dd {
 	position: absolute;
 	width:100%;
 	text-align:center;
-	z-index:1;
 }
 
 .privateRedText {
@@ -802,6 +835,11 @@ a.proposal_link_red:hover {
 	border-radius: 11px 11px 10px 10px;
 	box-shadow: 4px 4px 4px #333;
 	z-index:5;
+}
+
+.ajax_popover_form_large {
+    width: 1400px;
+    left: calc(50% - 700px);
 }
 
 .screenshot_box {
@@ -1397,6 +1435,11 @@ a.proposal_link_red:hover {
 }
 
 .templateChoiceButton:hover {
+	background-color:#bbb !important;
+	color:white;
+}
+
+.selected-tag {
 	background-color:#0088cc !important;
 	color:white;
 }
@@ -1514,6 +1557,19 @@ a.proposal_link_red:hover {
 
 .white {
 	color: white;
+}
+
+.json_key {
+	color: #690;
+	font-weight: bold;
+}
+
+.json_string, .json_boolean, .json_number {
+	color: #905;
+}
+
+.json_null {
+	color: #a8a8a8;
 }
 
 .background-lightblue {
@@ -1637,6 +1693,16 @@ a.discrete {
 	padding-bottom:10px;
 	width: 400px;
 	height: 100%;
+}
+
+.info_container_form {
+	border: 1px solid black; /*like Alexandre's heart*/
+	border-radius: 7px;
+	padding-left:10px;
+	padding-right:10px;
+	width: 438px;
+	height: 100%;
+	margin-bottom:10px;
 }
 
 .info_container_key {
@@ -2006,4 +2072,14 @@ table tr:hover .down-expand-button {
 	to {
 		transform: rotate(359deg);
 	}
+}
+
+#attackmatrix_div {
+    border-color: #363636;
+    overflow: visible;
+    max-height: 700px;
+    height: auto;
+    margin-top: 30px;
+    width: calc(100vw - 230px);
+    min-width: 1400px;
 }
